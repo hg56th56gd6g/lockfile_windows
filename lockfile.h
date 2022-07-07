@@ -27,21 +27,6 @@ typedef struct{
 //ntstatus.h
 #define STATUS_SUCCESS ((NTSTATUS)0x00000000)
 #define STATUS_END_OF_FILE ((NTSTATUS)0xC0000011)
-//ntifs.h
-typedef NTSTATUS(NTAPI*PRTL_HEAP_COMMIT_ROUTINE)(PVOID,PVOID *,PSIZE_T);
-typedef struct{
-    ULONG Length;
-    SIZE_T SegmentReserve;
-    SIZE_T SegmentCommit;
-    SIZE_T DeCommitFreeBlockThreshold;
-    SIZE_T DeCommitTotalFreeThreshold;
-    SIZE_T MaximumAllocationSize;
-    SIZE_T VirtualMemoryThreshold;
-    SIZE_T InitialCommit;
-    SIZE_T InitialReserve;
-    PRTL_HEAP_COMMIT_ROUTINE CommitRoutine;
-    SIZE_T Reserved[2];
-}RTL_HEAP_PARAMETERS,*PRTL_HEAP_PARAMETERS;
 //wdm.h
 #define FILE_OPENED 0x00000001
 typedef struct{
@@ -53,20 +38,6 @@ typedef struct{
 }IO_STATUS_BLOCK,*PIO_STATUS_BLOCK;
 typedef VOID(NTAPI*PIO_APC_ROUTINE)(PVOID,PIO_STATUS_BLOCK,ULONG);
 //函数
-typedef ULONG(NTAPI*PRtlGetProcessHeaps)(ULONG,PVOID *);
-typedef PVOID(NTAPI*PRtlCreateHeap)(ULONG,PVOID,SIZE_T,SIZE_T,PVOID,PRTL_HEAP_PARAMETERS);
-typedef PVOID(NTAPI*PRtlAllocateHeap)(PVOID,ULONG,SIZE_T);
-typedef PVOID(NTAPI*PRtlReAllocateHeap)(PVOID,ULONG,PVOID,SIZE_T);
-typedef LOGICAL(NTAPI*PRtlFreeHeap)(PVOID,ULONG,PVOID);
-typedef PVOID(NTAPI*PRtlDestroyHeap)(PVOID);
-typedef HANDLE(WINAPI*PGetStdHandle)(DWORD);
-typedef BOOL(WINAPI*PSetConsoleMode)(HANDLE,DWORD);
-typedef BOOL(WINAPI*PSetConsoleTitleA)(LPCTSTR);
-typedef BOOL(WINAPI*PFreeLibrary)(HMODULE);
-typedef BOOL(WINAPI*PReadConsoleA)(HANDLE,LPVOID,DWORD,LPDWORD,LPVOID);
-typedef BOOL(WINAPI*PWriteConsoleW)(HANDLE,LPVOID,DWORD,LPDWORD,LPVOID);
-typedef DWORD(WINAPI*PGetFullPathNameW)(LPCWSTR,DWORD,LPWSTR,LPWSTR *);
-typedef NTSTATUS(NTAPI*PNtClose)(HANDLE);
 typedef NTSTATUS(NTAPI*PNtReadFile)(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_STATUS_BLOCK,PVOID,ULONG,PLARGE_INTEGER,PULONG);
 typedef NTSTATUS(NTAPI*PNtOpenFile)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,ULONG,ULONG);
 //data(临时变量)的结构
@@ -82,18 +53,21 @@ typedef struct{
     UNICODE_STRING Path;
     //stdout
     HANDLE Stdout;
+    //file.list句柄
+    HANDLE FileHandle;
+    //临时句柄
+    HANDLE TempHandle;
     //创建的堆
-    PVOID Heap;
+    HANDLE Heap;
     //状态码
     NTSTATUS Status;
     //函数
-    PRtlReAllocateHeap RtlReAllocateHeap;
-    PWriteConsoleW WriteConsoleW;
     PNtReadFile NtReadFile;
     PNtOpenFile NtOpenFile;
 }TempDataStruct;
 //简写
-#define file (*hand)
+#define file (data->FileHandle)
+#define hand (data->TempHandle)
 #define path (data->DosDevices)
 #define ustr (data->Path)
 #define plen (ustr.Length)
@@ -103,7 +77,7 @@ typedef struct{
 #define stdo (data->Stdout)
 #define buff (data->Buffer)
 #define stts (data->Status)
-#define RtlReAllocateHeap (data->RtlReAllocateHeap)
-#define WriteConsoleW (data->WriteConsoleW)
+#define temp (*((DWORD *)&(data->Status)))
+#define ntdl (*((HMODULE *)&(data->TempHandle)))
 #define NtReadFile (data->NtReadFile)
 #define NtOpenFile (data->NtOpenFile)

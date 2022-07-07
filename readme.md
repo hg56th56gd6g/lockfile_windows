@@ -12,6 +12,10 @@ from"[https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-nti
 
 直接打开即可
 
+## ps
+
+现在程序结束后让系统自动回收资源,但运行时产生的内存依然会在等待退出时彻底清除,这么做旨在降低"press any key to exit"时的内存占用
+
 # file.list
 
 ## 说明
@@ -20,11 +24,7 @@ from"[https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-nti
 
 ## 格式
 
-{[uint8位掩码] [uint16路径长度] [路径(utf16编码,但没有2字节头部,即windows unicode编码)]}*
-
-## 位掩码
-
-0b [后面的uint16是否大端序] [保留] [保留] [保留] [保留] [保留] [保留] [保留]
+{[uint16le路径长度] [路径(utf16编码,但没有2字节头部,即windows unicode编码)]}*
 
 # IOfile.list.py
 

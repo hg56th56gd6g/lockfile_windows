@@ -7,15 +7,12 @@ def Main(Mode,FileList):
     if Mode=="r":
         with open("file.list","rb") as File:
             while True:
-                Buffer=tuple(ord(Buffer) for Buffer in File.read(3))
+                Buffer=tuple(ord(Buffer) for Buffer in File.read(2))
                 if not Buffer:
                     break
-                if len(Buffer)!=3:
+                if len(Buffer)!=2:
                     return FormatError
-                if Buffer[0]&0b10000000:
-                    Length=(Buffer[1]<<8)+Buffer[2]
-                else:
-                    Length=Buffer[1]+(Buffer[2]<<8)
+                Length=Buffer[0]+(Buffer[1]<<8)
                 Buffer=File.read(Length)
                 if len(Buffer)!=Length:
                     return FormatError
@@ -25,7 +22,6 @@ def Main(Mode,FileList):
         with open("file.list","wb") as File:
             for Path in FileList:
                 Path=Path.decode("utf8").encode("utf16")[2::]
-                File.write("\x00")
                 File.write(pack("<H",len(Path)))
                 File.write(Path)
         return Success
@@ -33,7 +29,6 @@ def Main(Mode,FileList):
         with open("file.list","ab") as File:
             for Path in FileList:
                 Path=Path.decode("utf8").encode("utf16")[2::]
-                File.write("\x00")
                 File.write(pack("<H",len(Path)))
                 File.write(Path)
         return Success
