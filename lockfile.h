@@ -1,7 +1,12 @@
+//other
+#define PROCESS_MODE_BACKGROUND_BEGIN ((DWORD)0x00100000)
+#define THREAD_MODE_BACKGROUND_BEGIN  ((DWORD)0x00010000)
 //stdint.h
 #include <stdint.h>
 //windows.h
 #include <windows.h>
+//memoryapi.h
+WINBASEAPI WINBOOL WINAPI SetProcessWorkingSetSizeEx (HANDLE hProcess, SIZE_T dwMinimumWorkingSetSize, SIZE_T dwMaximumWorkingSetSize, DWORD Flags);
 //winnt.h
 #define FILE_ALL_ACCESS (STANDARD_RIGHTS_REQUIRED | SYNCHRONIZE | 0x1FF)
 //ntdef.h
@@ -40,6 +45,7 @@ typedef VOID(NTAPI*PIO_APC_ROUTINE)(PVOID,PIO_STATUS_BLOCK,ULONG);
 //函数
 typedef NTSTATUS(NTAPI*PNtReadFile)(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_STATUS_BLOCK,PVOID,ULONG,PLARGE_INTEGER,PULONG);
 typedef NTSTATUS(NTAPI*PNtOpenFile)(PHANDLE,ACCESS_MASK,POBJECT_ATTRIBUTES,PIO_STATUS_BLOCK,ULONG,ULONG);
+typedef NTSTATUS(NTAPI*PNtClose)(HANDLE);
 //data(临时变量)的结构
 typedef struct{
     //储存路径
@@ -57,27 +63,26 @@ typedef struct{
     HANDLE FileHandle;
     //临时句柄
     HANDLE TempHandle;
-    //创建的堆
-    HANDLE Heap;
     //状态码
     NTSTATUS Status;
     //函数
     PNtReadFile NtReadFile;
     PNtOpenFile NtOpenFile;
+    PNtClose NtClose;
 }TempDataStruct;
 //简写
 #define file (data->FileHandle)
 #define hand (data->TempHandle)
+#define none (*((DWORD *)&hand))
+#define ntdl (*((HMODULE *)&hand))
 #define path (data->DosDevices)
 #define ustr (data->Path)
 #define plen (ustr.Length)
-#define heap (data->Heap)
 #define obja (data->ObjectAttributes)
 #define iosb (data->IOStatusBlock)
 #define stdo (data->Stdout)
 #define buff (data->Buffer)
 #define stts (data->Status)
-#define temp (*((DWORD *)&(data->Status)))
-#define ntdl (*((HMODULE *)&(data->TempHandle)))
 #define NtReadFile (data->NtReadFile)
 #define NtOpenFile (data->NtOpenFile)
+#define NtClose (data->NtClose)

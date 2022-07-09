@@ -1,30 +1,21 @@
 #include "lockfile.h"
+#include <stdio.h>
 void main(void){
-    HANDLE stdi;
     TempDataStruct *data;
     //因为没有stdo句柄,所以直接退出
     if(!(
-        //初始化内存分配,将临时的变量放在新创建的堆,解析完成后等待用户关闭的时候销毁堆,正常free内存占用不会完全释放,这保证了等待控制台输入(即已经锁定文件等待用户关闭程序时)的低内存占用
-        (stdi=HeapCreate(HEAP_NO_SERIALIZE,0,0))&&
-        (data=HeapAlloc(stdi,0,sizeof(TempDataStruct)))&&
+        //初始化内存分配,私有的无缓存页面区域
+        (data=VirtualAlloc(0,sizeof(TempDataStruct),MEM_COMMIT|MEM_RESERVE,PAGE_EXECUTE_READWRITE|PAGE_NOCACHE))&&
         //加载ntdll.dll和函数
         (ntdl=LoadLibraryA("ntdll"))&&
         (NtReadFile=(PNtReadFile)GetProcAddress(ntdl,"NtReadFile"))&&
         (NtOpenFile=(PNtOpenFile)GetProcAddress(ntdl,"NtOpenFile"))&&
+        (NtClose=(PNtClose)GetProcAddress(ntdl,"NtClose"))&&
         //获取stdo句柄
         ((stdo=GetStdHandle(STD_OUTPUT_HANDLE))!=INVALID_HANDLE_VALUE)
-    )){return;}
-    //将创建的堆的句柄复制到临时区
-    heap=stdi;
+    )){ExitProcess(0);}
     //BuildBy hg56th56gd6g
-    WriteFile(stdo,"BuildBy hg56th56gd6g\n\n",22,&temp,0);
-    //获取stdi句柄失败
-    if((stdi=GetStdHandle(STD_INPUT_HANDLE))==INVALID_HANDLE_VALUE){
-        WriteFile(stdo,"StdInputErr",11,&temp,0);
-        return;
-    }
-    //设置i模式(无输入缓冲,用于按任意键继续)
-    SetConsoleMode(stdi,0);
+    WriteFile(stdo,"BuildBy hg56th56gd6g\n",21,&none,0);
     //填充ObjectAttributes,之后不再改变,几个规则:不区分大小写;
     obja.Length=sizeof(OBJECT_ATTRIBUTES);
     obja.RootDirectory=0;
@@ -46,8 +37,8 @@ void main(void){
         (iosb.Information==FILE_OPENED)
     )){
         //打开失败
-        WriteFile(stdo,"OpenErr",7,&temp,0);
-        goto ends;
+        WriteFile(stdo,"OpenErr",7,&none,0);
+        goto end0;
     }
     //解析,结构为{[uint16le路径长度(0-65511)][路径(绝对路径,unicode)]}*
     for(;;){
@@ -58,8 +49,8 @@ void main(void){
             (stts==STATUS_END_OF_FILE)||
             (iosb.Status==STATUS_END_OF_FILE)
         ){
-            WriteFile(stdo,"\nok",3,&temp,0);
-            goto ends;
+            WriteFile(stdo,"\nOK",3,&none,0);
+            goto end1;
         }
         //读到了
         if(
@@ -76,8 +67,7 @@ void main(void){
                     (iosb.Status==STATUS_SUCCESS)&&
                     (iosb.Information==plen)
                 ){
-                    //打印路径并把plen加上L"\\DosDevices\\"的长度
-                    WriteFile(stdo,&buff,plen,&temp,0);
+                    //把plen加上L"\\DosDevices\\"的长度
                     plen+=24;
                     //打开路径,几个规则:拥有所有权限(如果没有权限,即使没有设置分享权限,也不能独占);独占文件;
                     if(
@@ -86,24 +76,28 @@ void main(void){
                         (iosb.Information==FILE_OPENED)
                     ){
                         //打开成功
-                        WriteFile(stdo,"|T\n",3,&temp,0);
+                        WriteFile(stdo,"T",1,&none,0);
                         continue;
                     }
                     //打开失败
-                    WriteFile(stdo,"|F\n",3,&temp,0);
+                    WriteFile(stdo,"F",1,&none,0);
                     continue;
                 }
             }
         }
         //读file.list失败或格式错误
-        WriteFile(stdo,"\nReadErr",8,&temp,0);
-        goto ends;
+        WriteFile(stdo,"\nReadErr",8,&none,0);
     }
-    //PressAnyKeyToExit
-    ends:
-    WriteFile(stdo,"\nPressAnyKeyToExit",18,&temp,0);
-    //销毁储存临时变量的堆
-    HeapDestroy(heap);
-    //按任意键继续
-    ReadFile(stdi,(LPVOID)&data,1,(LPDWORD)&data,0);
+    //WaitForExit
+    end1:
+    NtClose(file);
+    end0:
+    WriteFile(stdo,"\nWaitForExit",12,&none,0);
+    //释放储存临时数据的页面区域
+    VirtualFree(data,0,MEM_RELEASE);
+    //删除尽可能多的页面,并使工作集大小可以低于最低,不能超过最高
+    SetProcessWorkingSetSizeEx(GetCurrentProcess(),(SIZE_T)-1,(SIZE_T)-1,QUOTA_LIMITS_HARDWS_MIN_DISABLE|QUOTA_LIMITS_HARDWS_MAX_ENABLE);
+    //挂起
+    SuspendThread(GetCurrentThread());
+    ExitProcess(0);
 }
